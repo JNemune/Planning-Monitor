@@ -59,6 +59,14 @@ class App(object):
             "tab:cyan",
         ]
 
+        ax.hlines(
+            (
+                datetime.datetime.now()
+                - datetime.datetime.fromisoformat(done["main_time"])
+            ).total_seconds()
+            / 6048,
+            color="black",
+        )
         for i_, i in enumerate(tasks):
             for j_, j in enumerate(tasks[i]):
                 ax.bar(
@@ -81,7 +89,7 @@ class App(object):
 
         fig.savefig(join(".", "target", "plot.png"))
 
-    def do(self, category: str, task: str, detail: str) -> bool:
+    def do(self, category: str = "", task: str = "", detail: str = "") -> bool:
         """
         done tasks commit on target/done.json
         """
