@@ -17,7 +17,6 @@ class App(object):
             api_id = config["api_id"]
             api_hash = config["api_hash"]
             bot_token = config["bot_token"]
-            self.admin = config["admin"]
 
         self.app = Client(
             "Planning-Monitor", api_id=api_id, api_hash=api_hash, bot_token=bot_token
@@ -27,15 +26,15 @@ class App(object):
         self.telegram_manager()
         self.app.run()
 
-    def data_reader(self, case) -> dict:
+    def data_reader(self, id, case) -> dict:
         """
         read tasks.json and done.json and return dict of it
         """
-        with open(join(".", "target", f"{case}.json"), "r", encoding="utf-8") as f:
+        with open(join(".", "data", id, f"{case}.json"), "r", encoding="utf-8") as f:
             out = load(f)
         return out
 
-    def plot(self) -> None:
+    def plot(self, id) -> None:
         """
         plot percentage of time used and save the fig
         """
@@ -43,8 +42,8 @@ class App(object):
         def persian_text(inp: str):
             return get_display(arabic_reshaper.reshape(inp))
 
-        done = self.data_reader("done")
-        tasks = self.data_reader("tasks")
+        done = self.data_reader(id, "done")
+        tasks = self.data_reader(id, "tasks")
         fig, ax = plt.subplots()
         bar_colors = [
             "tab:blue",
@@ -87,14 +86,14 @@ class App(object):
         ax.set_title("Planning Monitor")
         ax.legend(title="Categories")
 
-        fig.savefig(join(".", "target", "plot.png"))
+        fig.savefig(join(".", "data", id, "plot.png"))
 
-    def do(self, category: str = "", task: str = "", detail: str = "") -> bool:
+    def do(self, id, category: str = "", task: str = "", detail: str = "") -> bool:
         """
-        done tasks commit on target/done.json
+        done tasks commit on data/done.json
         """
-        done = self.data_reader("done")
-        tasks = self.data_reader("tasks")
+        done = self.data_reader(id, "done")
+        tasks = self.data_reader(id, "tasks")
 
         if category not in tasks or task not in tasks[category]:
             return False
@@ -114,22 +113,25 @@ class App(object):
         ]
         done["start_time"] = time.isoformat()
 
-        with open(join(".", "target", "done.json"), "w", encoding="utf-8") as f:
+        with open(join(".", "data", id, "done.json"), "w", encoding="utf-8") as f:
             dump(done, f, ensure_ascii=False)
 
         return True
 
     def telegram_manager(self) -> None:
-        @self.app.on_message(filters.chat(int(self.admin)))
+        @self.app.on_message(filters.text & filters.private)
         async def new_message(client: Client, m: Message):
             match m.text:
                 case "plot":
-                    await m.reply_photo("__" + join(".", "target", "plot.png") + "__")
+                    self.plot(str(m.chat.id))
+                    await m.reply_photo(join(".", "data", id, "plot.png"))
                 case "tasks" | "done":
-                    await m.reply(pformat(self.data_reader(m.text)))
+                    await m.reply(
+                        "__" + pformat(self.data_reader(str(m.chat.id), m.text)) + "__"
+                    )
                 case _:
                     msg = m.text.split("\n")
-                    if self.do(*msg):
+                    if self.do(str(m.chat.id), *msg):
                         await m.reply("ثبت شد ✅")
                     else:
                         await m.reply("ثبت نشد ❌")
