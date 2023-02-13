@@ -58,16 +58,10 @@ class App(object):
             "tab:cyan",
         ]
 
-        ax.hlines(
-            (
-                datetime.datetime.now()
-                - datetime.datetime.fromisoformat(done["main_time"])
-            ).total_seconds()
-            / 6048,
-            color="black",
-        )
+        c = 0
         for i_, i in enumerate(tasks):
             for j_, j in enumerate(tasks[i]):
+                c += 1
                 ax.bar(
                     persian_text(j),
                     100
@@ -81,6 +75,16 @@ class App(object):
                     label=persian_text(i) if j_ == 0 else "_" + persian_text(i),
                     color=bar_colors[i_],
                 )
+        ax.hlines(
+            (
+                datetime.datetime.now()
+                - datetime.datetime.fromisoformat(done["main_time"])
+            ).total_seconds()
+            / 6048,
+            -0.3,
+            c - 0.7,
+            color="black",
+        )
 
         ax.set_ylabel("Percentage of Time Used (%)")
         ax.set_title("Planning Monitor")
@@ -124,7 +128,7 @@ class App(object):
             match m.text:
                 case "plot":
                     self.plot(str(m.chat.id))
-                    await m.reply_photo(join(".", "data", id, "plot.png"))
+                    await m.reply_photo(join(".", "data", str(m.chat.id), "plot.png"))
                 case "tasks" | "done":
                     await m.reply(
                         "__" + pformat(self.data_reader(str(m.chat.id), m.text)) + "__"
