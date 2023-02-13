@@ -2,4 +2,6 @@
 arabic-reshaper==3.0.0
 black==23.1.0
 matplotlib==3.6.3
+Pyrogram==2.0.99
 python-bidi==0.4.2
+TgCrypto==1.2.5
