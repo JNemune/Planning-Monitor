@@ -1,21 +1,39 @@
 import datetime
 from json import dump, load
 from os.path import join
+from pprint import pformat
 
 import arabic_reshaper
 import matplotlib.pyplot as plt
 from bidi.algorithm import get_display
+from pyrogram import Client, filters
+from pyrogram.types.messages_and_media.message import Message
 
 
 class App(object):
     def __init__(self) -> None:
+        with open(join(".", "target", "config.json"), "r", encoding="utf-8") as f:
+            config = load(f)
+            api_id = config["api_id"]
+            api_hash = config["api_hash"]
+            bot_token = config["bot_token"]
+            self.admin = config["admin"]
+
+        self.app = Client(
+            "Planning-Monitor", api_id=api_id, api_hash=api_hash, bot_token=bot_token
+        )
         self.CA_IR_delta = datetime.timedelta(hours=8, minutes=30)
 
-    def tasks_print(self) -> None:
-        pass
+        self.telegram_manager()
+        self.app.run()
 
-    def done_print(self) -> None:
-        pass
+    def data_reader(self, case) -> dict:
+        """
+        read tasks.json and done.json and return dict of it
+        """
+        with open(join(".", "target", f"{case}.json"), "r", encoding="utf-8") as f:
+            out = load(f)
+        return out
 
     def plot(self) -> None:
         """
@@ -25,12 +43,9 @@ class App(object):
         def persian_text(inp: str):
             return get_display(arabic_reshaper.reshape(inp))
 
-        with open(join(".", "target", "done.json"), "r", encoding="utf-8") as f:
-            done = load(f)
-        with open(join(".", "target", "tasks.json"), "r", encoding="utf-8") as f:
-            tasks = load(f)
+        done = self.data_reader("done")
+        tasks = self.data_reader("tasks")
         fig, ax = plt.subplots()
-
         bar_colors = [
             "tab:blue",
             "tab:orange",
@@ -70,12 +85,12 @@ class App(object):
         """
         done tasks commit on target/done.json
         """
-        with open(join(".", "target", "done.json"), "r", encoding="utf-8") as f:
-            done = load(f)
-        with open(join(".", "target", "tasks.json"), "r", encoding="utf-8") as f:
-            tasks = load(f)
+        done = self.data_reader("done")
+        tasks = self.data_reader("tasks")
+
         if category not in tasks or task not in tasks[category]:
             return False
+
         time = datetime.datetime.now() + self.CA_IR_delta
 
         done[category] = done.get(category, {})
@@ -94,11 +109,23 @@ class App(object):
         with open(join(".", "target", "done.json"), "w", encoding="utf-8") as f:
             dump(done, f, ensure_ascii=False)
 
+        return True
+
     def telegram_manager(self) -> None:
-        pass
+        @self.app.on_message(filters.chat(int(self.admin)))
+        async def new_message(client: Client, m: Message):
+            match m.text:
+                case "plot":
+                    await m.reply_photo("__" + join(".", "target", "plot.png") + "__")
+                case "tasks" | "done":
+                    await m.reply(pformat(self.data_reader(m.text)))
+                case _:
+                    msg = m.text.split("\n")
+                    if self.do(*msg):
+                        await m.reply("ثبت شد ✅")
+                    else:
+                        await m.reply("ثبت نشد ❌")
 
 
 if __name__ == "__main__":
     app = App()
-    app.do("متفرقه", "خواب", "درس")
-    app.plot()
