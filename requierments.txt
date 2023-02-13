@@ -1,2 +1,5 @@
-# python==3.11
+# python==3.10.9
+arabic-reshaper==3.0.0
 black==23.1.0
+matplotlib==3.6.3
+python-bidi==0.4.2
