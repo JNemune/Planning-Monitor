@@ -1,4 +1,5 @@
-import datetime
+from datetime import datetime as dt
+from datetime import timedelta
 from json import dump, load
 from os.path import join
 from pprint import pformat
@@ -21,7 +22,7 @@ class App(object):
         self.app = Client(
             "Planning-Monitor", api_id=api_id, api_hash=api_hash, bot_token=bot_token
         )
-        self.CA_IR_delta = datetime.timedelta(hours=8, minutes=30)
+        self.CA_IR_delta = timedelta(hours=8, minutes=30)
 
         self.telegram_manager()
         self.app.run()
@@ -30,9 +31,19 @@ class App(object):
         """
         read tasks.json and done.json and return dict of it
         """
-        with open(join(".", "data", id, f"{case}.json"), "r", encoding="utf-8") as f:
-            out = load(f)
-        return out
+        match case:
+            case "done":
+                with open(
+                    join(".", "data", id, "done.json"), "r", encoding="utf-8"
+                ) as f:
+                    out = load(f)
+                return out
+            case "tasks" | "start_time":
+                with open(
+                    join(".", "data", id, "tasks.json"), "r", encoding="utf-8"
+                ) as f:
+                    out = load(f)
+                return out["tasks"] if case == "tasks" else out["start_time"]
 
     def plot(self, id) -> None:
         """
@@ -44,6 +55,7 @@ class App(object):
 
         done = self.data_reader(id, "done")
         tasks = self.data_reader(id, "tasks")
+        start_time = dt.fromisoformat(self.data_reader(id, "start_time"))
         fig, ax = plt.subplots()
         bar_colors = [
             "tab:blue",
@@ -66,7 +78,16 @@ class App(object):
                     persian_text(j),
                     100
                     * (
-                        sum(k["time"] for k in done[i][j])
+                        sum(
+                            k["time"]
+                            if dt.fromisoformat(k["start_time"]) >= start_time
+                            else (
+                                dt.fromisoforamt(k["end_time"]) - start_time
+                            ).total_seconds()
+                            if dt.fromisoformat(k["end_time"]) >= start_time
+                            else 0
+                            for k in done[i][j]
+                        )
                         if i in done and j in done[i]
                         else 0
                     )
@@ -76,11 +97,7 @@ class App(object):
                     color=bar_colors[i_],
                 )
         ax.hlines(
-            (
-                datetime.datetime.now()
-                - datetime.datetime.fromisoformat(done["main_time"])
-            ).total_seconds()
-            / 6048,
+            (dt.now() - start_time).total_seconds() / 6048,
             -0.3,
             c - 0.7,
             color="black",
@@ -102,7 +119,7 @@ class App(object):
         if category not in tasks or task not in tasks[category]:
             return False
 
-        time = datetime.datetime.now() + self.CA_IR_delta
+        time = dt.now() + self.CA_IR_delta
 
         done[category] = done.get(category, {})
         done[category][task] = done[category].get(task, []) + [
@@ -110,9 +127,7 @@ class App(object):
                 "detail": detail,
                 "start_time": done["start_time"],
                 "end_time": time.isoformat(),
-                "time": (
-                    time - datetime.datetime.fromisoformat(done["start_time"])
-                ).total_seconds(),
+                "time": (time - dt.fromisoformat(done["start_time"])).total_seconds(),
             }
         ]
         done["start_time"] = time.isoformat()
