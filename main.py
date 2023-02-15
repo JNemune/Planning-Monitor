@@ -1,8 +1,8 @@
 from datetime import datetime as dt
 from datetime import timedelta
 from json import dump, load
-from os.path import join
-from pprint import pformat
+from os import makedirs
+from os.path import exists, join
 
 import arabic_reshaper
 import matplotlib.pyplot as plt
@@ -98,8 +98,8 @@ class App(object):
                 )
         ax.hlines(
             (dt.now() - start_time).total_seconds() / 6048,
-            -0.3,
-            c - 0.7,
+            -0.4,
+            c - 0.6,
             color="black",
         )
 
@@ -107,6 +107,7 @@ class App(object):
         ax.set_title("Planning Monitor")
         ax.legend(title="Categories")
 
+        fig.set_size_inches(18.5, 10.5)
         fig.savefig(join(".", "data", id, "plot.png"))
 
     def do(self, id, category: str = "", task: str = "", detail: str = "") -> bool:
@@ -140,13 +141,23 @@ class App(object):
     def telegram_manager(self) -> None:
         @self.app.on_message(filters.text & filters.private)
         async def new_message(client: Client, m: Message):
+            if not exists(join(".", "data", str(m.chat.id))):
+                makedirs(join(".", "data", str(m.chat.id)))
+                with open(join(".", "data", str(m.chat.id), "done.json"), "w") as f:
+                    dump({"start_time": dt.now().isoformat()}, f, ensure_ascii=False)
+                return
+
+            if not exists(join(".", "data", str(m.chat.id), "tasks.json")):
+                await m.reply("No tasks set.")
+                return
+
             match m.text:
                 case "plot":
                     self.plot(str(m.chat.id))
                     await m.reply_photo(join(".", "data", str(m.chat.id), "plot.png"))
                 case "tasks" | "done":
-                    await m.reply(
-                        "__" + pformat(self.data_reader(str(m.chat.id), m.text)) + "__"
+                    await m.reply_document(
+                        join(".", "data", str(m.chat.id), m.text + ".json")
                     )
                 case _:
                     msg = m.text.split("\n")
@@ -154,6 +165,13 @@ class App(object):
                         await m.reply("ثبت شد ✅")
                     else:
                         await m.reply("ثبت نشد ❌")
+
+        @self.app.on_message(filters.document & filters.private)
+        async def new_file(client: Client, m: Message):
+            # TODO: check the structur of the file
+            # with open(join(".", "data", str(m.chat.id), "tasks.json"), "r") as f:
+            await m.download(join(".", "data", str(m.chat.id), "tasks.json"))
+            await m.reply("tasks added.")
 
 
 if __name__ == "__main__":
