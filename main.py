@@ -82,7 +82,7 @@ class App(object):
                             k["time"]
                             if dt.fromisoformat(k["start_time"]) >= start_time
                             else (
-                                dt.fromisoforamt(k["end_time"]) - start_time
+                                dt.fromisoformat(k["end_time"]) - start_time
                             ).total_seconds()
                             if dt.fromisoformat(k["end_time"]) >= start_time
                             else 0
@@ -97,7 +97,7 @@ class App(object):
                     color=bar_colors[i_],
                 )
         ax.hlines(
-            (dt.now() - start_time).total_seconds() / 6048,
+            (dt.now() + self.CA_IR_delta - start_time).total_seconds() / 6048,
             -0.4,
             c - 0.6,
             color="black",
@@ -144,7 +144,11 @@ class App(object):
             if not exists(join(".", "data", str(m.chat.id))):
                 makedirs(join(".", "data", str(m.chat.id)))
                 with open(join(".", "data", str(m.chat.id), "done.json"), "w") as f:
-                    dump({"start_time": dt.now().isoformat()}, f, ensure_ascii=False)
+                    dump(
+                        {"start_time": (dt.now() + self.CA_IR_delta).isoformat()},
+                        f,
+                        ensure_ascii=False,
+                    )
                 return
 
             if not exists(join(".", "data", str(m.chat.id), "tasks.json")):
