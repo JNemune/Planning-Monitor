@@ -1,7 +1,7 @@
 from datetime import datetime as dt
 from datetime import timedelta
 from json import dump, load
-from os import makedirs
+from os import makedirs, remove
 from os.path import exists, join
 
 import arabic_reshaper
@@ -97,7 +97,9 @@ class App(object):
                     color=bar_colors[i_],
                 )
         ax.hlines(
-            (dt.now() + self.CA_IR_delta - start_time).total_seconds() / 6048,
+            (dt.now() + self.CA_IR_delta - start_time).total_seconds()
+            / sum([tasks[i][j] for i in tasks for j in tasks[i]])
+            / 36,
             -0.4,
             c - 0.6,
             color="black",
@@ -172,10 +174,13 @@ class App(object):
 
         @self.app.on_message(filters.document & filters.private)
         async def new_file(client: Client, m: Message):
-            # TODO: check the structur of the file
-            # with open(join(".", "data", str(m.chat.id), "tasks.json"), "r") as f:
             await m.download(join(".", "data", str(m.chat.id), "tasks.json"))
-            await m.reply("tasks added.")
+            try:
+                self.data_reader(str(m.chat.id), "start_time")
+                tasks = self.data_reader(str(m.chat.id), "tasks")
+                await m.reply(str(sum([tasks[i][j] for i in tasks for j in tasks[i]])))
+            except:
+                remove(join(".", "data", str(m.chat.id), "tasks.json"))
 
 
 if __name__ == "__main__":
